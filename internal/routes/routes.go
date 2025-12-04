@@ -27,22 +27,29 @@ func Register(app *fiber.App, serviceName string) {
 		}
 	}
 
-	// Initialize repository
-	repo, err := repositories.NewMerchantRepository(dbURL)
+	// Initialize repositories
+	merchantRepo, err := repositories.NewMerchantRepository(dbURL)
 	if err != nil {
-		log.Printf("Warning: Failed to connect to database: %v. Using stub implementation.", err)
-		// Continue with stub implementation
-		return
+		log.Fatalf("Failed to connect to database: %v", err)
 	}
 
-	// Initialize service
-	merchantService := services.NewMerchantService(repo)
+	// Get database connection from merchant repository for other repos
+	db := merchantRepo.GetDB()
+	paymentOptionsRepo := repositories.NewPaymentOptionsRepository(db)
+	settlementConfigRepo := repositories.NewSettlementConfigRepository(db)
+
+	// Initialize services
+	merchantService := services.NewMerchantService(merchantRepo)
+	paymentOptionsService := services.NewPaymentOptionsService(paymentOptionsRepo)
+	settlementConfigService := services.NewSettlementConfigService(settlementConfigRepo)
 
 	// Initialize handlers
 	merchantHandler := handlers.NewMerchantHandler(merchantService)
 	kycHandler := handlers.NewKYCHandler(merchantService)
+	paymentOptionsHandler := handlers.NewPaymentOptionsHandler(paymentOptionsService, settlementConfigService)
 
 	// Register routes
 	merchantHandler.Register(app)
 	kycHandler.Register(app)
+	paymentOptionsHandler.Register(app)
 }

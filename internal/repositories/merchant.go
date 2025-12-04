@@ -37,6 +37,10 @@ func (r *MerchantRepository) Close() error {
 	return r.db.Close()
 }
 
+func (r *MerchantRepository) GetDB() *sql.DB {
+	return r.db
+}
+
 // Create inserts a new merchant
 func (r *MerchantRepository) Create(ctx context.Context, merchant *models.Merchant) error {
 	query := `
