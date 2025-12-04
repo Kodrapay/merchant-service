@@ -12,11 +12,12 @@ import (
 )
 
 type MerchantService struct {
-	repo *repositories.MerchantRepository
+	repo       *repositories.MerchantRepository
+	apiKeyRepo *repositories.APIKeyRepository
 }
 
-func NewMerchantService(repo *repositories.MerchantRepository) *MerchantService {
-	return &MerchantService{repo: repo}
+func NewMerchantService(repo *repositories.MerchantRepository, apiKeyRepo *repositories.APIKeyRepository) *MerchantService {
+	return &MerchantService{repo: repo, apiKeyRepo: apiKeyRepo}
 }
 
 func (s *MerchantService) List(ctx context.Context) []dto.MerchantResponse {
@@ -96,13 +97,87 @@ func (s *MerchantService) UpdateStatus(ctx context.Context, id string, req dto.M
 	return map[string]string{"id": id, "status": req.Status}
 }
 
-func (s *MerchantService) ListAPIKeys(_ context.Context, id string) []dto.APIKeyResponse {
-	return []dto.APIKeyResponse{
-		{KeyID: "pub_" + uuid.NewString(), Key: "pk_test_stub", Type: "public"},
-		{KeyID: "sec_" + uuid.NewString(), Key: "sk_test_stub", Type: "secret"},
+func (s *MerchantService) ListAPIKeys(ctx context.Context, id string) []dto.APIKeyResponse {
+	keys, err := s.apiKeyRepo.ListByMerchantID(ctx, id)
+	if err != nil {
+		return []dto.APIKeyResponse{}
 	}
+
+	// If no keys exist, create default test keys
+	if len(keys) == 0 {
+		// Create public test key
+		pubKey, pubFullKey, _ := models.GenerateAPIKey(id, models.APIKeyTypePublic, models.EnvironmentTest)
+		if pubKey != nil {
+			_ = s.apiKeyRepo.Create(ctx, pubKey)
+			keys = append(keys, pubKey)
+		}
+
+		// Create secret test key
+		secKey, secFullKey, _ := models.GenerateAPIKey(id, models.APIKeyTypeSecret, models.EnvironmentTest)
+		if secKey != nil {
+			_ = s.apiKeyRepo.Create(ctx, secKey)
+			keys = append(keys, secKey)
+		}
+
+		// Return with full keys on first creation
+		responses := make([]dto.APIKeyResponse, 0, len(keys))
+		if pubKey != nil {
+			responses = append(responses, dto.APIKeyResponse{
+				KeyID:       pubKey.ID,
+				Key:         pubFullKey,
+				KeyPrefix:   pubKey.KeyPrefix,
+				Type:        string(pubKey.KeyType),
+				Environment: string(pubKey.Environment),
+				CreatedAt:   pubKey.CreatedAt.Format(time.RFC3339),
+			})
+		}
+		if secKey != nil {
+			responses = append(responses, dto.APIKeyResponse{
+				KeyID:       secKey.ID,
+				Key:         secFullKey,
+				KeyPrefix:   secKey.KeyPrefix,
+				Type:        string(secKey.KeyType),
+				Environment: string(secKey.Environment),
+				CreatedAt:   secKey.CreatedAt.Format(time.RFC3339),
+			})
+		}
+		return responses
+	}
+
+	// Return existing keys without full key value
+	responses := make([]dto.APIKeyResponse, len(keys))
+	for i, key := range keys {
+		responses[i] = dto.APIKeyResponse{
+			KeyID:       key.ID,
+			KeyPrefix:   key.KeyPrefix,
+			Type:        string(key.KeyType),
+			Environment: string(key.Environment),
+			CreatedAt:   key.CreatedAt.Format(time.RFC3339),
+		}
+	}
+	return responses
 }
 
-func (s *MerchantService) RotateAPIKey(_ context.Context, id string) dto.APIKeyResponse {
-	return dto.APIKeyResponse{KeyID: "rotated_" + uuid.NewString(), Key: "sk_test_rotated", Type: "secret"}
+func (s *MerchantService) RotateAPIKey(ctx context.Context, id string) dto.APIKeyResponse {
+	// Deactivate old secret test key
+	_ = s.apiKeyRepo.DeactivateByMerchantAndType(ctx, id, models.APIKeyTypeSecret, models.EnvironmentTest)
+
+	// Generate new secret test key
+	newKey, fullKey, err := models.GenerateAPIKey(id, models.APIKeyTypeSecret, models.EnvironmentTest)
+	if err != nil {
+		return dto.APIKeyResponse{}
+	}
+
+	if err := s.apiKeyRepo.Create(ctx, newKey); err != nil {
+		return dto.APIKeyResponse{}
+	}
+
+	return dto.APIKeyResponse{
+		KeyID:       newKey.ID,
+		Key:         fullKey,
+		KeyPrefix:   newKey.KeyPrefix,
+		Type:        string(newKey.KeyType),
+		Environment: string(newKey.Environment),
+		CreatedAt:   newKey.CreatedAt.Format(time.RFC3339),
+	}
 }

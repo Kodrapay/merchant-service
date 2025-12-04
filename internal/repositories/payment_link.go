@@ -1,0 +1,106 @@
+package repositories
+
+import (
+	"context"
+	"database/sql"
+
+	"github.com/kodra-pay/merchant-service/internal/models"
+)
+
+type PaymentLinkRepository struct {
+	db *sql.DB
+}
+
+func NewPaymentLinkRepository(db *sql.DB) *PaymentLinkRepository {
+	return &PaymentLinkRepository{db: db}
+}
+
+func (r *PaymentLinkRepository) Create(ctx context.Context, link *models.PaymentLink) error {
+	query := `
+		INSERT INTO payment_links (merchant_id, mode, amount, currency, description, status)
+		VALUES ($1, $2, $3, $4, $5, $6)
+		RETURNING id, created_at, updated_at
+	`
+	return r.db.QueryRowContext(ctx, query,
+		link.MerchantID,
+		link.Mode,
+		link.Amount,
+		link.Currency,
+		link.Description,
+		link.Status,
+	).Scan(&link.ID, &link.CreatedAt, &link.UpdatedAt)
+}
+
+func (r *PaymentLinkRepository) GetByID(ctx context.Context, id string) (*models.PaymentLink, error) {
+	query := `
+		SELECT id, merchant_id, mode, amount, currency, description, status, expires_at, created_at, updated_at
+		FROM payment_links
+		WHERE id = $1
+	`
+	var link models.PaymentLink
+	err := r.db.QueryRowContext(ctx, query, id).Scan(
+		&link.ID,
+		&link.MerchantID,
+		&link.Mode,
+		&link.Amount,
+		&link.Currency,
+		&link.Description,
+		&link.Status,
+		&link.ExpiresAt,
+		&link.CreatedAt,
+		&link.UpdatedAt,
+	)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &link, nil
+}
+
+func (r *PaymentLinkRepository) GetByMerchantID(ctx context.Context, merchantID string, limit int) ([]models.PaymentLink, error) {
+	query := `
+		SELECT id, merchant_id, mode, amount, currency, description, status, expires_at, created_at, updated_at
+		FROM payment_links
+		WHERE merchant_id = $1
+		ORDER BY created_at DESC
+		LIMIT $2
+	`
+	rows, err := r.db.QueryContext(ctx, query, merchantID, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var links []models.PaymentLink
+	for rows.Next() {
+		var link models.PaymentLink
+		if err := rows.Scan(
+			&link.ID,
+			&link.MerchantID,
+			&link.Mode,
+			&link.Amount,
+			&link.Currency,
+			&link.Description,
+			&link.Status,
+			&link.ExpiresAt,
+			&link.CreatedAt,
+			&link.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		links = append(links, link)
+	}
+	return links, rows.Err()
+}
+
+func (r *PaymentLinkRepository) Update(ctx context.Context, link *models.PaymentLink) error {
+	query := `
+		UPDATE payment_links
+		SET status = $1, updated_at = NOW()
+		WHERE id = $2
+		RETURNING updated_at
+	`
+	return r.db.QueryRowContext(ctx, query, link.Status, link.ID).Scan(&link.UpdatedAt)
+}

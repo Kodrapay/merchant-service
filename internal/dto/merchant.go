@@ -27,7 +27,10 @@ type MerchantResponse struct {
 }
 
 type APIKeyResponse struct {
-	KeyID string `json:"key_id"`
-	Key   string `json:"key"`
-	Type  string `json:"type"`
+	KeyID       string `json:"key_id"`
+	Key         string `json:"key,omitempty"` // Only returned when creating/rotating
+	KeyPrefix   string `json:"key_prefix"`
+	Type        string `json:"type"`
+	Environment string `json:"environment"`
+	CreatedAt   string `json:"created_at"`
 }
