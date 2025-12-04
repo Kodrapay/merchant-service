@@ -56,3 +56,14 @@ func (h *MerchantHandler) RotateAPIKey(c *fiber.Ctx) error {
 	resp := h.svc.RotateAPIKey(c.Context(), id)
 	return c.JSON(resp)
 }
+
+// Register registers all merchant routes
+func (h *MerchantHandler) Register(app *fiber.App) {
+	merchants := app.Group("/merchants")
+	merchants.Get("/", h.List)
+	merchants.Post("/", h.Create)
+	merchants.Get("/:id", h.Get)
+	merchants.Put("/:id/status", h.UpdateStatus)
+	merchants.Get("/:id/api-keys", h.ListAPIKeys)
+	merchants.Post("/:id/api-keys/rotate", h.RotateAPIKey)
+}

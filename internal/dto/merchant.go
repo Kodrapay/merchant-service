@@ -21,7 +21,9 @@ type MerchantResponse struct {
 	Email        string `json:"email"`
 	BusinessName string `json:"business_name"`
 	Status       string `json:"status"`
+	KYCStatus    string `json:"kyc_status"`
 	Country      string `json:"country"`
+	CanTransact  bool   `json:"can_transact"`
 }
 
 type APIKeyResponse struct {
