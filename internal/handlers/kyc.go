@@ -8,11 +8,13 @@ import (
 
 type KYCHandler struct {
 	merchantService *services.MerchantService
+	kycService      *services.KYCService
 }
 
-func NewKYCHandler(merchantService *services.MerchantService) *KYCHandler {
+func NewKYCHandler(merchantService *services.MerchantService, kycService *services.KYCService) *KYCHandler {
 	return &KYCHandler{
 		merchantService: merchantService,
+		kycService:      kycService,
 	}
 }
 
@@ -23,13 +25,11 @@ func (h *KYCHandler) SubmitKYC(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid request body")
 	}
 
-	// TODO: Implement actual KYC submission logic
-	// For now, return a stub response
-	return c.JSON(dto.KYCSubmissionResponse{
-		SubmissionID: "kyc_" + req.MerchantID,
-		Status:       "pending",
-		Message:      "KYC submission received and is under review",
-	})
+	submission, err := h.kycService.Submit(c.Context(), req)
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	}
+	return c.Status(fiber.StatusCreated).JSON(submission)
 }
 
 // GetKYCStatus returns the current KYC status for a merchant
@@ -39,15 +39,16 @@ func (h *KYCHandler) GetKYCStatus(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, "merchant_id is required")
 	}
 
-	merchant, err := h.merchantService.GetMerchant(c.Context(), merchantID)
+	status, err := h.kycService.GetLatest(c.Context(), merchantID)
 	if err != nil {
-		return fiber.NewError(fiber.StatusNotFound, "merchant not found")
+		return fiber.NewError(fiber.StatusInternalServerError, "failed to fetch kyc status")
 	}
 
-	return c.JSON(dto.KYCStatusResponse{
-		MerchantID: merchant.ID,
-		Status:     string(merchant.KYCStatus),
-	})
+	if status == nil {
+		return fiber.NewError(fiber.StatusNotFound, "kyc submission not found")
+	}
+
+	return c.JSON(status)
 }
 
 // UpdateKYCStatus updates the KYC status (admin only)
@@ -57,8 +58,14 @@ func (h *KYCHandler) UpdateKYCStatus(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid request body")
 	}
 
-	// TODO: Implement actual KYC status update logic
-	// For now, return a stub response
+	if req.MerchantID == "" {
+		return fiber.NewError(fiber.StatusBadRequest, "merchant_id is required")
+	}
+
+	if err := h.kycService.UpdateStatus(c.Context(), req.MerchantID, req.Status, &req.ReviewerID, &req.ReviewNotes); err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	}
+
 	return c.JSON(dto.KYCStatusResponse{
 		MerchantID:  req.MerchantID,
 		Status:      req.Status,
@@ -73,4 +80,13 @@ func (h *KYCHandler) Register(app *fiber.App) {
 	kyc.Post("/submit", h.SubmitKYC)
 	kyc.Get("/status/:merchant_id", h.GetKYCStatus)
 	kyc.Post("/update", h.UpdateKYCStatus) // Admin only - should be protected by auth middleware
+	kyc.Get("/pending", h.ListPending)
+}
+
+func (h *KYCHandler) ListPending(c *fiber.Ctx) error {
+	items, err := h.kycService.ListByStatus(c.Context(), "pending", 100)
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, "failed to list kyc submissions")
+	}
+	return c.JSON(items)
 }

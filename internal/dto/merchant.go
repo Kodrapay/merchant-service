@@ -15,6 +15,10 @@ type MerchantStatusUpdateRequest struct {
 	Status string `json:"status"`
 }
 
+type MerchantKYCStatusUpdateRequest struct {
+	KYCStatus string `json:"kyc_status"`
+}
+
 type MerchantResponse struct {
 	ID           string `json:"id"`
 	Name         string `json:"name"`

@@ -39,16 +39,18 @@ func Register(app *fiber.App, serviceName string) {
 	settlementConfigRepo := repositories.NewSettlementConfigRepository(db)
 	paymentLinkRepo := repositories.NewPaymentLinkRepository(db)
 	apiKeyRepo := repositories.NewAPIKeyRepository(db)
+	kycSubmissionRepo := repositories.NewKYCSubmissionRepository(db)
 
 	// Initialize services
 	merchantService := services.NewMerchantService(merchantRepo, apiKeyRepo)
+	kycService := services.NewKYCService(merchantRepo, kycSubmissionRepo)
 	paymentOptionsService := services.NewPaymentOptionsService(paymentOptionsRepo)
 	settlementConfigService := services.NewSettlementConfigService(settlementConfigRepo)
 	paymentLinkService := services.NewPaymentLinkService(paymentLinkRepo)
 
 	// Initialize handlers
 	merchantHandler := handlers.NewMerchantHandler(merchantService)
-	kycHandler := handlers.NewKYCHandler(merchantService)
+	kycHandler := handlers.NewKYCHandler(merchantService, kycService)
 	paymentOptionsHandler := handlers.NewPaymentOptionsHandler(paymentOptionsService, settlementConfigService)
 	paymentLinkHandler := handlers.NewPaymentLinkHandler(paymentLinkService)
 

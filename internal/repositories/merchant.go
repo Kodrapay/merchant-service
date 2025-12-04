@@ -54,8 +54,8 @@ func (r *MerchantRepository) Create(ctx context.Context, merchant *models.Mercha
 		merchant.Email,
 		merchant.BusinessName,
 		merchant.Country,
-		merchant.Status,
-		merchant.KYCStatus,
+		merchant.Status,       // Use status from merchant object
+		merchant.KYCStatus,    // Use KYC status from merchant object
 		merchant.CreatedAt,
 		merchant.UpdatedAt,
 	)
@@ -297,3 +297,122 @@ func (r *MerchantRepository) Count(ctx context.Context, status string) (int, err
 	err := r.db.QueryRowContext(ctx, query, args...).Scan(&count)
 	return count, err
 }
+
+// ListByKYCStatus retrieves merchants by their KYC status
+func (r *MerchantRepository) ListByKYCStatus(ctx context.Context, kycStatus models.KYCStatus, limit, offset int) ([]*models.Merchant, error) {
+	query := `
+		SELECT id, name, email, business_name, country, status, kyc_status, created_at, updated_at
+		FROM merchants
+		WHERE kyc_status = $1
+	`
+
+	args := []interface{}{kycStatus}
+	argCount := 2
+
+	query += " ORDER BY created_at DESC"
+
+	if limit > 0 {
+		query += fmt.Sprintf(" LIMIT $%d", argCount)
+		args = append(args, limit)
+		argCount++
+	}
+
+	if offset > 0 {
+		query += fmt.Sprintf(" OFFSET $%d", argCount)
+		args = append(args, offset)
+	}
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	merchants := []*models.Merchant{}
+	for rows.Next() {
+		merchant := &models.Merchant{}
+		err := rows.Scan(
+			&merchant.ID,
+			&merchant.Name,
+			&merchant.Email,
+			&merchant.BusinessName,
+			&merchant.Country,
+			&merchant.Status,
+			&merchant.KYCStatus,
+			&merchant.CreatedAt,
+			&merchant.UpdatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		merchants = append(merchants, merchant)
+	}
+
+	return merchants, rows.Err()
+}
+
+// ListByKYCStatuses retrieves merchants by multiple KYC statuses
+func (r *MerchantRepository) ListByKYCStatuses(ctx context.Context, kycStatuses []models.KYCStatus, limit, offset int) ([]*models.Merchant, error) {
+	if len(kycStatuses) == 0 {
+		return []*models.Merchant{}, nil
+	}
+
+	query := `
+		SELECT id, name, email, business_name, country, status, kyc_status, created_at, updated_at
+		FROM merchants
+		WHERE kyc_status IN (`
+	
+	args := make([]interface{}, len(kycStatuses))
+	for i, status := range kycStatuses {
+		query += fmt.Sprintf("$%d", i+1)
+		args[i] = status
+		if i < len(kycStatuses)-1 {
+			query += ", "
+		}
+	}
+	query += ")"
+
+	argCount := len(args) + 1
+
+	query += " ORDER BY created_at DESC"
+
+	if limit > 0 {
+		query += fmt.Sprintf(" LIMIT $%d", argCount)
+		args = append(args, limit)
+		argCount++
+	}
+
+	if offset > 0 {
+		query += fmt.Sprintf(" OFFSET $%d", argCount)
+		args = append(args, offset)
+	}
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	merchants := []*models.Merchant{}
+	for rows.Next() {
+		merchant := &models.Merchant{}
+		err := rows.Scan(
+			&merchant.ID,
+			&merchant.Name,
+			&merchant.Email,
+			&merchant.BusinessName,
+			&merchant.Country,
+			&merchant.Status,
+			&merchant.KYCStatus,
+			&merchant.CreatedAt,
+			&merchant.UpdatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		merchants = append(merchants, merchant)
+	}
+
+	return merchants, rows.Err()
+}
+

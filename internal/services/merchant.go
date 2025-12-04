@@ -50,8 +50,8 @@ func (s *MerchantService) Create(ctx context.Context, req dto.MerchantCreateRequ
 		Email:        req.Email,
 		BusinessName: req.BusinessName,
 		Country:      req.Country,
-		Status:       models.MerchantStatusInactive,
-		KYCStatus:    models.KYCStatusNotStarted,
+		Status:       models.MerchantStatusInactive, // Set initial status
+		KYCStatus:    models.KYCStatusNotStarted,   // Set initial KYC status
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
 	}
@@ -86,6 +86,38 @@ func (s *MerchantService) Get(ctx context.Context, id string) dto.MerchantRespon
 // GetMerchant returns the merchant model (for internal use)
 func (s *MerchantService) GetMerchant(ctx context.Context, id string) (*models.Merchant, error) {
 	return s.repo.GetByID(ctx, id)
+}
+
+func (s *MerchantService) ListByKYCStatus(ctx context.Context, kycStatus models.KYCStatus, limit, offset int) []dto.MerchantResponse {
+	merchants, err := s.repo.ListByKYCStatus(ctx, kycStatus, limit, offset)
+	if err != nil {
+		return []dto.MerchantResponse{}
+	}
+
+	responses := make([]dto.MerchantResponse, len(merchants))
+	for i, m := range merchants {
+		responses[i] = dto.MerchantResponse{
+			ID:           m.ID,
+			Name:         m.Name,
+			Email:        m.Email,
+			BusinessName: m.BusinessName,
+			Status:       string(m.Status),
+			KYCStatus:    string(m.KYCStatus),
+			Country:      m.Country,
+			CanTransact:  m.CanTransact(),
+		}
+	}
+
+	return responses
+}
+
+func (s *MerchantService) UpdateKYCStatus(ctx context.Context, id string, req dto.MerchantKYCStatusUpdateRequest) map[string]string {
+	kycStatus := models.KYCStatus(req.KYCStatus)
+	err := s.repo.UpdateKYCStatus(ctx, id, kycStatus)
+	if err != nil {
+		return map[string]string{"id": id, "kyc_status": "error", "message": err.Error()}
+	}
+	return map[string]string{"id": id, "kyc_status": req.KYCStatus}
 }
 
 func (s *MerchantService) UpdateStatus(ctx context.Context, id string, req dto.MerchantStatusUpdateRequest) map[string]string {
@@ -155,6 +187,30 @@ func (s *MerchantService) ListAPIKeys(ctx context.Context, id string) []dto.APIK
 			CreatedAt:   key.CreatedAt.Format(time.RFC3339),
 		}
 	}
+	return responses
+}
+
+// ListByKYCStatuses returns a list of merchants filtered by multiple KYC statuses
+func (s *MerchantService) ListByKYCStatuses(ctx context.Context, kycStatuses []models.KYCStatus, limit, offset int) []dto.MerchantResponse {
+	merchants, err := s.repo.ListByKYCStatuses(ctx, kycStatuses, limit, offset)
+	if err != nil {
+		return []dto.MerchantResponse{}
+	}
+
+	responses := make([]dto.MerchantResponse, len(merchants))
+	for i, m := range merchants {
+		responses[i] = dto.MerchantResponse{
+			ID:           m.ID,
+			Name:         m.Name,
+			Email:        m.Email,
+			BusinessName: m.BusinessName,
+			Status:       string(m.Status),
+			KYCStatus:    string(m.KYCStatus),
+			Country:      m.Country,
+			CanTransact:  m.CanTransact(),
+		}
+	}
+
 	return responses
 }
 
