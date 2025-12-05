@@ -83,6 +83,43 @@ func (s *MerchantService) Get(ctx context.Context, id string) dto.MerchantRespon
 	}
 }
 
+// GetAny returns the first merchant (fallback when id is not provided)
+func (s *MerchantService) GetAny(ctx context.Context) dto.MerchantResponse {
+	merchants, err := s.repo.List(ctx, "", 1, 0)
+	if err != nil || len(merchants) == 0 {
+		return dto.MerchantResponse{}
+	}
+	m := merchants[0]
+	return dto.MerchantResponse{
+		ID:           m.ID,
+		Name:         m.Name,
+		Email:        m.Email,
+		BusinessName: m.BusinessName,
+		Status:       string(m.Status),
+		KYCStatus:    string(m.KYCStatus),
+		Country:      m.Country,
+		CanTransact:  m.CanTransact(),
+	}
+}
+
+// GetByEmail is a helper to retrieve by email if needed in other flows
+func (s *MerchantService) GetByEmail(ctx context.Context, email string) dto.MerchantResponse {
+	merchant, err := s.repo.GetByEmail(ctx, email)
+	if err != nil || merchant == nil {
+		return dto.MerchantResponse{}
+	}
+	return dto.MerchantResponse{
+		ID:           merchant.ID,
+		Name:         merchant.Name,
+		Email:        merchant.Email,
+		BusinessName: merchant.BusinessName,
+		Status:       string(merchant.Status),
+		KYCStatus:    string(merchant.KYCStatus),
+		Country:      merchant.Country,
+		CanTransact:  merchant.CanTransact(),
+	}
+}
+
 // GetMerchant returns the merchant model (for internal use)
 func (s *MerchantService) GetMerchant(ctx context.Context, id string) (*models.Merchant, error) {
 	return s.repo.GetByID(ctx, id)
