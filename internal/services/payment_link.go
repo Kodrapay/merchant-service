@@ -2,6 +2,8 @@ package services
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -16,6 +18,19 @@ type PaymentLinkService struct {
 
 func NewPaymentLinkService(repo *repositories.PaymentLinkRepository) *PaymentLinkService {
 	return &PaymentLinkService{repo: repo}
+}
+
+func (s *PaymentLinkService) DeletePaymentLink(ctx context.Context, id, merchantID string) error {
+	if id == "" {
+		return fmt.Errorf("id is required")
+	}
+	if err := s.repo.Delete(ctx, id, merchantID); err != nil {
+		if errors.Is(err, repositories.ErrPaymentLinkNotFound) || errors.Is(err, sql.ErrNoRows) {
+			return repositories.ErrPaymentLinkNotFound
+		}
+		return err
+	}
+	return nil
 }
 
 func (s *PaymentLinkService) CreatePaymentLink(ctx context.Context, req dto.CreatePaymentLinkRequest) (*dto.PaymentLinkResponse, error) {

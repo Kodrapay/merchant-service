@@ -97,15 +97,38 @@ func (h *MerchantHandler) RotateAPIKey(c *fiber.Ctx) error {
 	return c.JSON(resp)
 }
 
+// Me returns the current merchant profile by merchant_id passed via query or header
+func (h *MerchantHandler) Me(c *fiber.Ctx) error {
+	merchantID := c.Query("merchant_id")
+	if merchantID == "" {
+		merchantID = c.Get("X-Merchant-Id")
+	}
+	var resp dto.MerchantResponse
+	if merchantID == "" {
+		resp = h.svc.GetAny(c.Context())
+	} else {
+		resp = h.svc.Get(c.Context(), merchantID)
+	}
+	if resp.ID == "" {
+		return fiber.NewError(fiber.StatusNotFound, "merchant not found")
+	}
+	return c.JSON(resp)
+}
+
 // Register registers all merchant routes
 func (h *MerchantHandler) Register(app *fiber.App) {
 	merchants := app.Group("/merchants")
 	merchants.Get("/", h.List)
 	merchants.Get("/kyc", h.ListMerchantsByKYCStatuses) // New route for listing by KYC status
+	merchants.Get("/me", h.Me)
 	merchants.Post("/", h.Create)
 	merchants.Get("/:id", h.Get)
 	merchants.Put("/:id/status", h.UpdateStatus)
 	merchants.Put("/:id/kyc-status", h.UpdateKYCStatus) // New route for updating KYC status
 	merchants.Get("/:id/api-keys", h.ListAPIKeys)
 	merchants.Post("/:id/api-keys/rotate", h.RotateAPIKey)
+
+	// Singular alias
+	singular := app.Group("/merchant")
+	singular.Get("/me", h.Me)
 }

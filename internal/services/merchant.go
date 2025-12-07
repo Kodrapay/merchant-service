@@ -2,22 +2,28 @@ package services
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"log"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
 
+	"github.com/kodra-pay/merchant-service/internal/clients"
 	"github.com/kodra-pay/merchant-service/internal/dto"
 	"github.com/kodra-pay/merchant-service/internal/models"
 	"github.com/kodra-pay/merchant-service/internal/repositories"
 )
 
 type MerchantService struct {
-	repo       *repositories.MerchantRepository
-	apiKeyRepo *repositories.APIKeyRepository
+	repo               *repositories.MerchantRepository
+	apiKeyRepo         *repositories.APIKeyRepository
+	walletLedgerClient clients.WalletLedgerClient
 }
 
-func NewMerchantService(repo *repositories.MerchantRepository, apiKeyRepo *repositories.APIKeyRepository) *MerchantService {
-	return &MerchantService{repo: repo, apiKeyRepo: apiKeyRepo}
+func NewMerchantService(repo *repositories.MerchantRepository, apiKeyRepo *repositories.APIKeyRepository, walletLedgerClient clients.WalletLedgerClient) *MerchantService {
+	return &MerchantService{repo: repo, apiKeyRepo: apiKeyRepo, walletLedgerClient: walletLedgerClient}
 }
 
 func (s *MerchantService) List(ctx context.Context) []dto.MerchantResponse {
@@ -51,7 +57,7 @@ func (s *MerchantService) Create(ctx context.Context, req dto.MerchantCreateRequ
 		BusinessName: req.BusinessName,
 		Country:      req.Country,
 		Status:       models.MerchantStatusInactive, // Set initial status
-		KYCStatus:    models.KYCStatusNotStarted,   // Set initial KYC status
+		KYCStatus:    models.KYCStatusNotStarted,    // Set initial KYC status
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
 	}
@@ -71,6 +77,43 @@ func (s *MerchantService) Get(ctx context.Context, id string) dto.MerchantRespon
 		return dto.MerchantResponse{}
 	}
 
+	return dto.MerchantResponse{
+		ID:           merchant.ID,
+		Name:         merchant.Name,
+		Email:        merchant.Email,
+		BusinessName: merchant.BusinessName,
+		Status:       string(merchant.Status),
+		KYCStatus:    string(merchant.KYCStatus),
+		Country:      merchant.Country,
+		CanTransact:  merchant.CanTransact(),
+	}
+}
+
+// GetAny returns the first merchant (fallback when id is not provided)
+func (s *MerchantService) GetAny(ctx context.Context) dto.MerchantResponse {
+	merchants, err := s.repo.List(ctx, "", 1, 0)
+	if err != nil || len(merchants) == 0 {
+		return dto.MerchantResponse{}
+	}
+	m := merchants[0]
+	return dto.MerchantResponse{
+		ID:           m.ID,
+		Name:         m.Name,
+		Email:        m.Email,
+		BusinessName: m.BusinessName,
+		Status:       string(m.Status),
+		KYCStatus:    string(m.KYCStatus),
+		Country:      m.Country,
+		CanTransact:  m.CanTransact(),
+	}
+}
+
+// GetByEmail is a helper to retrieve by email if needed in other flows
+func (s *MerchantService) GetByEmail(ctx context.Context, email string) dto.MerchantResponse {
+	merchant, err := s.repo.GetByEmail(ctx, email)
+	if err != nil || merchant == nil {
+		return dto.MerchantResponse{}
+	}
 	return dto.MerchantResponse{
 		ID:           merchant.ID,
 		Name:         merchant.Name,
@@ -112,12 +155,32 @@ func (s *MerchantService) ListByKYCStatus(ctx context.Context, kycStatus models.
 }
 
 func (s *MerchantService) UpdateKYCStatus(ctx context.Context, id string, req dto.MerchantKYCStatusUpdateRequest) map[string]string {
-	kycStatus := models.KYCStatus(req.KYCStatus)
+	statusValue := strings.ToLower(req.KYCStatus)
+	if statusValue == "completed" {
+		statusValue = string(models.KYCStatusApproved)
+	}
+
+	kycStatus := models.KYCStatus(statusValue)
+
 	err := s.repo.UpdateKYCStatus(ctx, id, kycStatus)
 	if err != nil {
 		return map[string]string{"id": id, "kyc_status": "error", "message": err.Error()}
 	}
-	return map[string]string{"id": id, "kyc_status": req.KYCStatus}
+
+	resp := map[string]string{"id": id, "kyc_status": string(kycStatus)}
+
+	// Provision a wallet for approved merchants (idempotent check against wallet-ledger service).
+	if kycStatus == models.KYCStatusApproved {
+		if err := s.ensureMerchantWallet(ctx, id, "NGN"); err != nil {
+			log.Printf("Failed to provision wallet for merchant %s: %v", id, err)
+			resp["wallet_status"] = "error"
+			resp["wallet_error"] = err.Error()
+		} else {
+			resp["wallet_status"] = "created"
+		}
+	}
+
+	return resp
 }
 
 func (s *MerchantService) UpdateStatus(ctx context.Context, id string, req dto.MerchantStatusUpdateRequest) map[string]string {
@@ -236,4 +299,25 @@ func (s *MerchantService) RotateAPIKey(ctx context.Context, id string) dto.APIKe
 		Environment: string(newKey.Environment),
 		CreatedAt:   newKey.CreatedAt.Format(time.RFC3339),
 	}
+}
+
+// ensureMerchantWallet checks for an existing wallet and creates one if missing.
+func (s *MerchantService) ensureMerchantWallet(ctx context.Context, merchantID, currency string) error {
+	if s.walletLedgerClient == nil {
+		return fmt.Errorf("wallet-ledger client not configured")
+	}
+
+	wallet, err := s.walletLedgerClient.GetWalletByUserIDAndCurrency(ctx, merchantID, currency)
+	if err != nil && !errors.Is(err, clients.ErrWalletNotFound) {
+		return err
+	}
+	if wallet != nil {
+		return nil
+	}
+
+	_, err = s.walletLedgerClient.CreateWallet(ctx, dto.WalletCreateRequest{
+		UserID:   merchantID,
+		Currency: currency,
+	})
+	return err
 }

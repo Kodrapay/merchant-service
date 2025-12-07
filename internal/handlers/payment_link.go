@@ -5,6 +5,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/kodra-pay/merchant-service/internal/dto"
+	"github.com/kodra-pay/merchant-service/internal/repositories"
 	"github.com/kodra-pay/merchant-service/internal/services"
 )
 
@@ -20,6 +21,7 @@ func (h *PaymentLinkHandler) Register(app *fiber.App) {
 	app.Post("/payment-links", h.CreatePaymentLink)
 	app.Get("/payment-links/:id", h.GetPaymentLink)
 	app.Get("/merchants/:merchant_id/payment-links", h.ListPaymentLinks)
+	app.Delete("/payment-links/:id", h.DeletePaymentLink)
 }
 
 func (h *PaymentLinkHandler) CreatePaymentLink(c *fiber.Ctx) error {
@@ -92,4 +94,23 @@ func (h *PaymentLinkHandler) ListPaymentLinks(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(links)
+}
+
+func (h *PaymentLinkHandler) DeletePaymentLink(c *fiber.Ctx) error {
+	id := c.Params("id")
+	if id == "" {
+		return fiber.NewError(fiber.StatusBadRequest, "payment link id is required")
+	}
+	merchantID := c.Query("merchant_id")
+
+	if err := h.svc.DeletePaymentLink(c.Context(), id, merchantID); err != nil {
+		if err == repositories.ErrPaymentLinkNotFound {
+			return fiber.NewError(fiber.StatusNotFound, err.Error())
+		}
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"message": "Payment link deleted successfully",
+	})
 }

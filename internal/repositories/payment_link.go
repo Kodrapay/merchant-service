@@ -3,9 +3,12 @@ package repositories
 import (
 	"context"
 	"database/sql"
+	"errors"
 
 	"github.com/kodra-pay/merchant-service/internal/models"
 )
+
+var ErrPaymentLinkNotFound = errors.New("payment link not found")
 
 type PaymentLinkRepository struct {
 	db *sql.DB
@@ -103,4 +106,36 @@ func (r *PaymentLinkRepository) Update(ctx context.Context, link *models.Payment
 		RETURNING updated_at
 	`
 	return r.db.QueryRowContext(ctx, query, link.Status, link.ID).Scan(&link.UpdatedAt)
+}
+
+// Delete removes a payment link by ID, optionally scoping to merchant ownership.
+func (r *PaymentLinkRepository) Delete(ctx context.Context, id, merchantID string) error {
+	var (
+		res sql.Result
+		err error
+	)
+
+	if merchantID != "" {
+		res, err = r.db.ExecContext(ctx, `
+			DELETE FROM payment_links
+			WHERE id = $1 AND merchant_id = $2
+		`, id, merchantID)
+	} else {
+		res, err = r.db.ExecContext(ctx, `
+			DELETE FROM payment_links
+			WHERE id = $1
+		`, id)
+	}
+
+	if err != nil {
+		return err
+	}
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
+		return ErrPaymentLinkNotFound
+	}
+	return nil
 }

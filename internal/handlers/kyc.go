@@ -44,8 +44,18 @@ func (h *KYCHandler) GetKYCStatus(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, "failed to fetch kyc status")
 	}
 
+	// If no KYC submission found, get the merchant's KYC status from merchants table
 	if status == nil {
-		return fiber.NewError(fiber.StatusNotFound, "kyc submission not found")
+		merchant, err := h.merchantService.GetMerchant(c.Context(), merchantID)
+		if err != nil {
+			return fiber.NewError(fiber.StatusNotFound, "merchant not found")
+		}
+
+		// Return merchant's KYC status from the merchants table
+		return c.JSON(dto.KYCStatusResponse{
+			MerchantID: merchantID,
+			Status:     string(merchant.KYCStatus),
+		})
 	}
 
 	return c.JSON(status)
