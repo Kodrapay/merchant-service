@@ -195,7 +195,7 @@ func (r *SettlementConfigRepository) CreateDefault(ctx context.Context, merchant
 	err := r.db.QueryRowContext(
 		ctx, query,
 		merchantID, models.ScheduleTypeDaily, "09:00:00", defaultDays,
-		1000000, true, 2, "NGN",
+		0, true, 2, "NGN",
 	).Scan(
 		&sc.ID, &sc.MerchantID, &sc.ScheduleType, &sc.SettlementTime,
 		&settlementDays, &sc.MinimumAmount, &sc.AutoSettle,

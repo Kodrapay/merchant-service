@@ -17,11 +17,12 @@ import (
 type MerchantService struct {
 	repo               *repositories.MerchantRepository
 	apiKeyRepo         *repositories.APIKeyRepository
+	settlementRepo     *repositories.SettlementConfigRepository
 	walletLedgerClient clients.WalletLedgerClient
 }
 
-func NewMerchantService(repo *repositories.MerchantRepository, apiKeyRepo *repositories.APIKeyRepository, walletLedgerClient clients.WalletLedgerClient) *MerchantService {
-	return &MerchantService{repo: repo, apiKeyRepo: apiKeyRepo, walletLedgerClient: walletLedgerClient}
+func NewMerchantService(repo *repositories.MerchantRepository, apiKeyRepo *repositories.APIKeyRepository, settlementRepo *repositories.SettlementConfigRepository, walletLedgerClient clients.WalletLedgerClient) *MerchantService {
+	return &MerchantService{repo: repo, apiKeyRepo: apiKeyRepo, settlementRepo: settlementRepo, walletLedgerClient: walletLedgerClient}
 }
 
 func (s *MerchantService) List(ctx context.Context) []dto.MerchantResponse {
@@ -73,6 +74,11 @@ func (s *MerchantService) Create(ctx context.Context, req dto.MerchantCreateRequ
 		// Depending on business logic, you might want to handle this error differently
 	} else {
 		log.Printf("Successfully provisioned wallet for merchant %d", merchant.ID)
+	}
+
+	// Provision default settlement config (idempotent)
+	if err := s.ensureSettlementConfig(ctx, merchant.ID); err != nil {
+		log.Printf("Failed to provision default settlement config for merchant %d: %v", merchant.ID, err)
 	}
 
 	return dto.MerchantCreateResponse{ID: merchant.ID}
@@ -185,9 +191,27 @@ func (s *MerchantService) UpdateKYCStatus(ctx context.Context, id int, req dto.M
 		} else {
 			resp["wallet_status"] = "created"
 		}
+
+		// Provision default settlement config (idempotent)
+		if err := s.ensureSettlementConfig(ctx, id); err != nil {
+			log.Printf("Failed to provision settlement config for merchant %d: %v", id, err)
+			resp["settlement_config"] = "error"
+			resp["settlement_error"] = err.Error()
+		} else {
+			resp["settlement_config"] = "created"
+		}
 	}
 
 	return resp
+}
+
+// ensureSettlementConfig creates a default settlement config if missing (idempotent via GetByMerchantID)
+func (s *MerchantService) ensureSettlementConfig(ctx context.Context, merchantID int) error {
+	if s.settlementRepo == nil {
+		return fmt.Errorf("settlement repository not configured")
+	}
+	_, err := s.settlementRepo.GetByMerchantID(ctx, merchantID)
+	return err
 }
 
 func (s *MerchantService) UpdateStatus(ctx context.Context, id int, req dto.MerchantStatusUpdateRequest) map[string]interface{} {
