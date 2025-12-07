@@ -34,9 +34,9 @@ func (h *KYCHandler) SubmitKYC(c *fiber.Ctx) error {
 
 // GetKYCStatus returns the current KYC status for a merchant
 func (h *KYCHandler) GetKYCStatus(c *fiber.Ctx) error {
-	merchantID := c.Params("merchant_id")
-	if merchantID == "" {
-		return fiber.NewError(fiber.StatusBadRequest, "merchant_id is required")
+	merchantID, err := c.ParamsInt("merchant_id")
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "Invalid merchant ID")
 	}
 
 	status, err := h.kycService.GetLatest(c.Context(), merchantID)
@@ -45,7 +45,7 @@ func (h *KYCHandler) GetKYCStatus(c *fiber.Ctx) error {
 	}
 
 	// If no KYC submission found, get the merchant's KYC status from merchants table
-	if status == nil {
+	if status == nil || status.MerchantID == 0 { // Check if status is nil or has a zero ID
 		merchant, err := h.merchantService.GetMerchant(c.Context(), merchantID)
 		if err != nil {
 			return fiber.NewError(fiber.StatusNotFound, "merchant not found")
@@ -68,18 +68,24 @@ func (h *KYCHandler) UpdateKYCStatus(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid request body")
 	}
 
-	if req.MerchantID == "" {
+	if req.MerchantID == 0 { // int check
 		return fiber.NewError(fiber.StatusBadRequest, "merchant_id is required")
 	}
 
-	if err := h.kycService.UpdateStatus(c.Context(), req.MerchantID, req.Status, &req.ReviewerID, &req.ReviewNotes); err != nil {
+	// Convert req.ReviewerID (int) to *int for service layer
+	var reviewerID *int
+	if req.ReviewerID != 0 {
+		reviewerID = &req.ReviewerID
+	}
+
+	if err := h.kycService.UpdateStatus(c.Context(), req.MerchantID, req.Status, reviewerID, &req.ReviewNotes); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
 	return c.JSON(dto.KYCStatusResponse{
 		MerchantID:  req.MerchantID,
 		Status:      req.Status,
-		ReviewerID:  req.ReviewerID,
+		ReviewerID:  reviewerID,
 		ReviewNotes: req.ReviewNotes,
 	})
 }

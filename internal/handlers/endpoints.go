@@ -1,8 +1,10 @@
 package handlers
 
 import (
-	"github.com/gofiber/fiber/v2"
+	"strconv"
 	"strings"
+
+	"github.com/gofiber/fiber/v2"
 
 	"github.com/kodra-pay/merchant-service/internal/dto"
 	"github.com/kodra-pay/merchant-service/internal/models"
@@ -60,13 +62,22 @@ func (h *MerchantHandler) Create(c *fiber.Ctx) error {
 }
 
 func (h *MerchantHandler) Get(c *fiber.Ctx) error {
-	id := c.Params("id")
+	id, err := c.ParamsInt("id")
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "Invalid merchant ID")
+	}
 	resp := h.svc.Get(c.Context(), id)
+	if resp.ID == 0 { // Not found
+		return fiber.NewError(fiber.StatusNotFound, "Merchant not found")
+	}
 	return c.JSON(resp)
 }
 
 func (h *MerchantHandler) UpdateStatus(c *fiber.Ctx) error {
-	id := c.Params("id")
+	id, err := c.ParamsInt("id")
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "Invalid merchant ID")
+	}
 	var req dto.MerchantStatusUpdateRequest
 	if err := c.BodyParser(&req); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid request body")
@@ -76,7 +87,10 @@ func (h *MerchantHandler) UpdateStatus(c *fiber.Ctx) error {
 }
 
 func (h *MerchantHandler) UpdateKYCStatus(c *fiber.Ctx) error {
-	id := c.Params("id")
+	id, err := c.ParamsInt("id")
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "Invalid merchant ID")
+	}
 	var req dto.MerchantKYCStatusUpdateRequest
 	if err := c.BodyParser(&req); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid request body")
@@ -86,30 +100,40 @@ func (h *MerchantHandler) UpdateKYCStatus(c *fiber.Ctx) error {
 }
 
 func (h *MerchantHandler) ListAPIKeys(c *fiber.Ctx) error {
-	id := c.Params("id")
+	id, err := c.ParamsInt("id")
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "Invalid merchant ID")
+	}
 	resp := h.svc.ListAPIKeys(c.Context(), id)
 	return c.JSON(resp)
 }
 
 func (h *MerchantHandler) RotateAPIKey(c *fiber.Ctx) error {
-	id := c.Params("id")
+	id, err := c.ParamsInt("id")
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "Invalid merchant ID")
+	}
 	resp := h.svc.RotateAPIKey(c.Context(), id)
 	return c.JSON(resp)
 }
 
 // Me returns the current merchant profile by merchant_id passed via query or header
 func (h *MerchantHandler) Me(c *fiber.Ctx) error {
-	merchantID := c.Query("merchant_id")
-	if merchantID == "" {
-		merchantID = c.Get("X-Merchant-Id")
+	merchantIDStr := c.Query("merchant_id")
+	if merchantIDStr == "" {
+		merchantIDStr = c.Get("X-Merchant-Id")
 	}
-	var resp dto.MerchantResponse
-	if merchantID == "" {
-		resp = h.svc.GetAny(c.Context())
-	} else {
-		resp = h.svc.Get(c.Context(), merchantID)
+	if merchantIDStr == "" {
+		return fiber.NewError(fiber.StatusBadRequest, "merchant_id is required")
 	}
-	if resp.ID == "" {
+
+	merchantID, err := strconv.Atoi(merchantIDStr)
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "invalid merchant_id")
+	}
+
+	resp := h.svc.Get(c.Context(), merchantID)
+	if resp.ID == 0 {
 		return fiber.NewError(fiber.StatusNotFound, "merchant not found")
 	}
 	return c.JSON(resp)

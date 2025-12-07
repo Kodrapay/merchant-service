@@ -8,7 +8,7 @@ type MerchantCreateRequest struct {
 }
 
 type MerchantCreateResponse struct {
-	ID string `json:"id"`
+	ID int `json:"id"`
 }
 
 type MerchantStatusUpdateRequest struct {
@@ -20,7 +20,7 @@ type MerchantKYCStatusUpdateRequest struct {
 }
 
 type MerchantResponse struct {
-	ID           string `json:"id"`
+	ID           int    `json:"id"`
 	Name         string `json:"name"`
 	Email        string `json:"email"`
 	BusinessName string `json:"business_name"`
@@ -31,7 +31,7 @@ type MerchantResponse struct {
 }
 
 type APIKeyResponse struct {
-	KeyID       string `json:"key_id"`
+	KeyID       int    `json:"key_id"`
 	Key         string `json:"key,omitempty"` // Only returned when creating/rotating
 	KeyPrefix   string `json:"key_prefix"`
 	Type        string `json:"type"`

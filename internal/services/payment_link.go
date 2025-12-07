@@ -20,8 +20,8 @@ func NewPaymentLinkService(repo *repositories.PaymentLinkRepository) *PaymentLin
 	return &PaymentLinkService{repo: repo}
 }
 
-func (s *PaymentLinkService) DeletePaymentLink(ctx context.Context, id, merchantID string) error {
-	if id == "" {
+func (s *PaymentLinkService) DeletePaymentLink(ctx context.Context, id, merchantID int) error {
+	if id == 0 { // int check
 		return fmt.Errorf("id is required")
 	}
 	if err := s.repo.Delete(ctx, id, merchantID); err != nil {
@@ -64,7 +64,7 @@ func (s *PaymentLinkService) CreatePaymentLink(ctx context.Context, req dto.Crea
 	}, nil
 }
 
-func (s *PaymentLinkService) GetPaymentLink(ctx context.Context, id string) (*dto.PaymentLinkResponse, error) {
+func (s *PaymentLinkService) GetPaymentLink(ctx context.Context, id int) (*dto.PaymentLinkResponse, error) {
 	link, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
@@ -89,7 +89,7 @@ func (s *PaymentLinkService) GetPaymentLink(ctx context.Context, id string) (*dt
 	}, nil
 }
 
-func (s *PaymentLinkService) ListPaymentLinks(ctx context.Context, merchantID string, limit int) (*dto.ListPaymentLinksResponse, error) {
+func (s *PaymentLinkService) ListPaymentLinks(ctx context.Context, merchantID int, limit int) (*dto.ListPaymentLinksResponse, error) {
 	links, err := s.repo.GetByMerchantID(ctx, merchantID, limit)
 	if err != nil {
 		return nil, err
@@ -121,7 +121,7 @@ func (s *PaymentLinkService) ListPaymentLinks(ctx context.Context, merchantID st
 func (s *PaymentLinkService) buildCheckoutURL(link *models.PaymentLink) string {
 	// Build the checkout URL based on the payment link
 	baseURL := "http://localhost:5174/merchant/checkout"
-	url := fmt.Sprintf("%s?ref=%s&currency=%s&mode=%s&merchant_id=%s",
+	url := fmt.Sprintf("%s?ref=%d&currency=%s&mode=%s&merchant_id=%d",
 		baseURL, link.ID, link.Currency, link.Mode, link.MerchantID)
 
 	if link.Description != "" {

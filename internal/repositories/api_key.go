@@ -34,7 +34,7 @@ func (r *APIKeyRepository) Create(ctx context.Context, key *models.APIKey) error
 	).Scan(&key.ID)
 }
 
-func (r *APIKeyRepository) ListByMerchantID(ctx context.Context, merchantID string) ([]*models.APIKey, error) {
+func (r *APIKeyRepository) ListByMerchantID(ctx context.Context, merchantID int) ([]*models.APIKey, error) {
 	query := `
 		SELECT id, merchant_id, key_hash, key_prefix, key_type, environment, is_active, last_used_at, expires_at, created_at
 		FROM api_keys
@@ -70,7 +70,7 @@ func (r *APIKeyRepository) ListByMerchantID(ctx context.Context, merchantID stri
 	return keys, rows.Err()
 }
 
-func (r *APIKeyRepository) DeactivateByMerchantAndType(ctx context.Context, merchantID string, keyType models.APIKeyType, env models.Environment) error {
+func (r *APIKeyRepository) DeactivateByMerchantAndType(ctx context.Context, merchantID int, keyType models.APIKeyType, env models.Environment) error {
 	query := `
 		UPDATE api_keys
 		SET is_active = false

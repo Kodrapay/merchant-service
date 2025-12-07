@@ -3,8 +3,8 @@ package models
 import "time"
 
 type KYCSubmission struct {
-	ID                string            `json:"id"`
-	MerchantID        string            `json:"merchant_id"`
+	ID                int               `json:"id"`
+	MerchantID        int               `json:"merchant_id"`
 	BusinessType      string            `json:"business_type"`
 	BusinessName      string            `json:"business_name"`
 	CACNumber         string            `json:"cac_number,omitempty"`
@@ -21,7 +21,7 @@ type KYCSubmission struct {
 	DirectorEmail     string            `json:"director_email"`
 	Documents         map[string]string `json:"documents"`
 	Status            string            `json:"status"`
-	ReviewerID        *string           `json:"reviewer_id,omitempty"`
+	ReviewerID        *int              `json:"reviewer_id,omitempty"`
 	ReviewNotes       *string           `json:"review_notes,omitempty"`
 	ReviewedAt        *time.Time        `json:"reviewed_at,omitempty"`
 	CreatedAt         time.Time         `json:"created_at"`

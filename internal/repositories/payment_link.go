@@ -34,7 +34,7 @@ func (r *PaymentLinkRepository) Create(ctx context.Context, link *models.Payment
 	).Scan(&link.ID, &link.CreatedAt, &link.UpdatedAt)
 }
 
-func (r *PaymentLinkRepository) GetByID(ctx context.Context, id string) (*models.PaymentLink, error) {
+func (r *PaymentLinkRepository) GetByID(ctx context.Context, id int) (*models.PaymentLink, error) {
 	query := `
 		SELECT id, merchant_id, mode, amount, currency, description, status, expires_at, created_at, updated_at
 		FROM payment_links
@@ -62,7 +62,7 @@ func (r *PaymentLinkRepository) GetByID(ctx context.Context, id string) (*models
 	return &link, nil
 }
 
-func (r *PaymentLinkRepository) GetByMerchantID(ctx context.Context, merchantID string, limit int) ([]models.PaymentLink, error) {
+func (r *PaymentLinkRepository) GetByMerchantID(ctx context.Context, merchantID int, limit int) ([]models.PaymentLink, error) {
 	query := `
 		SELECT id, merchant_id, mode, amount, currency, description, status, expires_at, created_at, updated_at
 		FROM payment_links
@@ -109,13 +109,13 @@ func (r *PaymentLinkRepository) Update(ctx context.Context, link *models.Payment
 }
 
 // Delete removes a payment link by ID, optionally scoping to merchant ownership.
-func (r *PaymentLinkRepository) Delete(ctx context.Context, id, merchantID string) error {
+func (r *PaymentLinkRepository) Delete(ctx context.Context, id, merchantID int) error {
 	var (
 		res sql.Result
 		err error
 	)
 
-	if merchantID != "" {
+	if merchantID != 0 {
 		res, err = r.db.ExecContext(ctx, `
 			DELETE FROM payment_links
 			WHERE id = $1 AND merchant_id = $2

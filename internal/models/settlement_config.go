@@ -13,8 +13,8 @@ const (
 )
 
 type SettlementConfig struct {
-	ID                  string       `json:"id" db:"id"`
-	MerchantID          string       `json:"merchant_id" db:"merchant_id"`
+	ID                  int          `json:"id" db:"id"`
+	MerchantID          int          `json:"merchant_id" db:"merchant_id"`
 	ScheduleType        ScheduleType `json:"schedule_type" db:"schedule_type"`
 	SettlementTime      string       `json:"settlement_time" db:"settlement_time"` // HH:MM:SS format
 	SettlementDays      []int        `json:"settlement_days" db:"settlement_days"` // Days of week (1=Mon, 7=Sun)

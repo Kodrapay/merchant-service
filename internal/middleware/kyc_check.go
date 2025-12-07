@@ -1,6 +1,8 @@
 package middleware
 
 import (
+	"strconv"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/kodra-pay/merchant-service/internal/models"
 	"github.com/kodra-pay/merchant-service/internal/services"
@@ -29,9 +31,13 @@ func (m *KYCCheckMiddleware) RequireApprovedKYC(c *fiber.Ctx) error {
 	if !ok {
 		return fiber.NewError(fiber.StatusInternalServerError, "invalid merchant ID format")
 	}
+	id, err := strconv.Atoi(merchantIDStr)
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, "invalid merchant ID format")
+	}
 
 	// Get merchant details
-	merchant, err := m.merchantService.GetMerchant(c.Context(), merchantIDStr)
+	merchant, err := m.merchantService.GetMerchant(c.Context(), id)
 	if err != nil {
 		return fiber.NewError(fiber.StatusNotFound, "merchant not found")
 	}
@@ -39,17 +45,17 @@ func (m *KYCCheckMiddleware) RequireApprovedKYC(c *fiber.Ctx) error {
 	// Check if merchant can transact
 	if merchant.KYCStatus != models.KYCStatusApproved {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"error": "kyc_not_approved",
-			"message": "Your KYC verification must be approved before you can process transactions. Please complete your KYC verification.",
+			"error":      "kyc_not_approved",
+			"message":    "Your KYC verification must be approved before you can process transactions. Please complete your KYC verification.",
 			"kyc_status": merchant.KYCStatus,
 		})
 	}
 
 	if merchant.Status != models.MerchantStatusActive {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"error": "account_not_active",
+			"error":   "account_not_active",
 			"message": "Your merchant account is not active. Please contact support.",
-			"status": merchant.Status,
+			"status":  merchant.Status,
 		})
 	}
 
@@ -68,8 +74,12 @@ func (m *KYCCheckMiddleware) CheckKYCStatus(c *fiber.Ctx) error {
 	if !ok {
 		return c.Next()
 	}
+	id, err := strconv.Atoi(merchantIDStr)
+	if err != nil {
+		return c.Next()
+	}
 
-	merchant, err := m.merchantService.GetMerchant(c.Context(), merchantIDStr)
+	merchant, err := m.merchantService.GetMerchant(c.Context(), id)
 	if err != nil {
 		return c.Next()
 	}

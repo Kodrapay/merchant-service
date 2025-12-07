@@ -17,12 +17,12 @@ func NewPaymentOptionsService(repo *repositories.PaymentOptionsRepository) *Paym
 }
 
 // GetPaymentOptions retrieves payment options for a merchant
-func (s *PaymentOptionsService) GetPaymentOptions(ctx context.Context, merchantID string) (*models.PaymentOptions, error) {
+func (s *PaymentOptionsService) GetPaymentOptions(ctx context.Context, merchantID int) (*models.PaymentOptions, error) {
 	return s.repo.GetByMerchantID(ctx, merchantID)
 }
 
 // UpdatePaymentOptions updates payment options for a merchant
-func (s *PaymentOptionsService) UpdatePaymentOptions(ctx context.Context, merchantID string, po *models.PaymentOptions) error {
+func (s *PaymentOptionsService) UpdatePaymentOptions(ctx context.Context, merchantID int, po *models.PaymentOptions) error {
 	// Validate merchant owns this configuration
 	if po.MerchantID != merchantID {
 		return fmt.Errorf("merchant ID mismatch")
@@ -56,12 +56,12 @@ func NewSettlementConfigService(repo *repositories.SettlementConfigRepository) *
 }
 
 // GetSettlementConfig retrieves settlement config for a merchant
-func (s *SettlementConfigService) GetSettlementConfig(ctx context.Context, merchantID string) (*models.SettlementConfig, error) {
+func (s *SettlementConfigService) GetSettlementConfig(ctx context.Context, merchantID int) (*models.SettlementConfig, error) {
 	return s.repo.GetByMerchantID(ctx, merchantID)
 }
 
 // UpdateSettlementConfig updates settlement config for a merchant
-func (s *SettlementConfigService) UpdateSettlementConfig(ctx context.Context, merchantID string, sc *models.SettlementConfig) error {
+func (s *SettlementConfigService) UpdateSettlementConfig(ctx context.Context, merchantID int, sc *models.SettlementConfig) error {
 	// Validate merchant owns this configuration
 	if sc.MerchantID != merchantID {
 		return fmt.Errorf("merchant ID mismatch")

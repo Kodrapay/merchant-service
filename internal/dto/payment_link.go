@@ -1,7 +1,7 @@
 package dto
 
 type CreatePaymentLinkRequest struct {
-	MerchantID  string `json:"merchant_id"`
+	MerchantID  int    `json:"merchant_id"`
 	Mode        string `json:"mode"`
 	Amount      *int64 `json:"amount,omitempty"`
 	Currency    string `json:"currency"`
@@ -9,8 +9,8 @@ type CreatePaymentLinkRequest struct {
 }
 
 type PaymentLinkResponse struct {
-	ID          string `json:"id"`
-	MerchantID  string `json:"merchant_id"`
+	ID          int    `json:"id"`
+	MerchantID  int    `json:"merchant_id"`
 	Mode        string `json:"mode"`
 	Amount      *int64 `json:"amount,omitempty"`
 	Currency    string `json:"currency"`

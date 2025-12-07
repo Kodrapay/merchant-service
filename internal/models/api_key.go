@@ -23,8 +23,8 @@ const (
 )
 
 type APIKey struct {
-	ID          string      `json:"id"`
-	MerchantID  string      `json:"merchant_id"`
+	ID          int         `json:"id"`
+	MerchantID  int         `json:"merchant_id"`
 	KeyHash     string      `json:"-"` // Never expose the hash
 	KeyPrefix   string      `json:"key_prefix"`
 	KeyType     APIKeyType  `json:"key_type"`
@@ -36,7 +36,7 @@ type APIKey struct {
 }
 
 // GenerateAPIKey creates a new API key with the given prefix (pk_ or sk_)
-func GenerateAPIKey(merchantID string, keyType APIKeyType, env Environment) (*APIKey, string, error) {
+func GenerateAPIKey(merchantID int, keyType APIKeyType, env Environment) (*APIKey, string, error) {
 	// Generate random bytes
 	keyBytes := make([]byte, 32)
 	if _, err := rand.Read(keyBytes); err != nil {
