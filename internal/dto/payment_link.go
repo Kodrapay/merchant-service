@@ -3,7 +3,7 @@ package dto
 type CreatePaymentLinkRequest struct {
 	MerchantID  int    `json:"merchant_id"`
 	Mode        string `json:"mode"`
-	Amount      *int64 `json:"amount,omitempty"`
+	Amount      *float64 `json:"amount,omitempty"` // currency units
 	Currency    string `json:"currency"`
 	Description string `json:"description"`
 }
@@ -12,7 +12,7 @@ type PaymentLinkResponse struct {
 	ID          int    `json:"id"`
 	MerchantID  int    `json:"merchant_id"`
 	Mode        string `json:"mode"`
-	Amount      *int64 `json:"amount,omitempty"`
+	Amount      *float64 `json:"amount,omitempty"` // currency units
 	Currency    string `json:"currency"`
 	Description string `json:"description"`
 	Status      string `json:"status"`

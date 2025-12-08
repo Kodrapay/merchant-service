@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/kodra-pay/merchant-service/internal/dto"
@@ -34,10 +35,16 @@ func (s *PaymentLinkService) DeletePaymentLink(ctx context.Context, id, merchant
 }
 
 func (s *PaymentLinkService) CreatePaymentLink(ctx context.Context, req dto.CreatePaymentLinkRequest) (*dto.PaymentLinkResponse, error) {
+	var amountKobo *int64
+	if req.Amount != nil {
+		val := int64(math.Round(*req.Amount * 100))
+		amountKobo = &val
+	}
+
 	link := &models.PaymentLink{
 		MerchantID:  req.MerchantID,
 		Mode:        req.Mode,
-		Amount:      req.Amount,
+		Amount:      amountKobo,
 		Currency:    req.Currency,
 		Description: req.Description,
 		Status:      "active",
@@ -54,7 +61,7 @@ func (s *PaymentLinkService) CreatePaymentLink(ctx context.Context, req dto.Crea
 		ID:          link.ID,
 		MerchantID:  link.MerchantID,
 		Mode:        link.Mode,
-		Amount:      link.Amount,
+		Amount:      toCurrencyAmount(link.Amount),
 		Currency:    link.Currency,
 		Description: link.Description,
 		Status:      link.Status,
@@ -79,7 +86,7 @@ func (s *PaymentLinkService) GetPaymentLink(ctx context.Context, id int) (*dto.P
 		ID:          link.ID,
 		MerchantID:  link.MerchantID,
 		Mode:        link.Mode,
-		Amount:      link.Amount,
+		Amount:      toCurrencyAmount(link.Amount),
 		Currency:    link.Currency,
 		Description: link.Description,
 		Status:      link.Status,
@@ -102,7 +109,7 @@ func (s *PaymentLinkService) ListPaymentLinks(ctx context.Context, merchantID in
 			ID:          link.ID,
 			MerchantID:  link.MerchantID,
 			Mode:        link.Mode,
-			Amount:      link.Amount,
+			Amount:      toCurrencyAmount(link.Amount),
 			Currency:    link.Currency,
 			Description: link.Description,
 			Status:      link.Status,
@@ -129,10 +136,18 @@ func (s *PaymentLinkService) buildCheckoutURL(link *models.PaymentLink) string {
 	}
 
 	if link.Mode == "fixed" && link.Amount != nil {
-		url += fmt.Sprintf("&amount=%d", *link.Amount)
+		url += fmt.Sprintf("&amount=%.2f", float64(*link.Amount)/100)
 	}
 
 	return url
+}
+
+func toCurrencyAmount(amountKobo *int64) *float64 {
+	if amountKobo == nil {
+		return nil
+	}
+	val := float64(*amountKobo) / 100
+	return &val
 }
 
 // Helper function to get current timestamp in milliseconds
