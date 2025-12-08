@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"strconv"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/kodra-pay/merchant-service/internal/models"
 	"github.com/kodra-pay/merchant-service/internal/services"
@@ -24,10 +26,16 @@ func NewPaymentOptionsHandler(
 // GetPaymentOptions retrieves payment options for a merchant
 // GET /merchants/:id/payment-options
 func (h *PaymentOptionsHandler) GetPaymentOptions(c *fiber.Ctx) error {
-	merchantID := c.Params("id")
-	if merchantID == "" {
+	merchantIDStr := c.Params("id")
+	if merchantIDStr == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "merchant_id is required",
+		})
+	}
+	merchantID, err := strconv.Atoi(merchantIDStr)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "merchant_id must be a number",
 		})
 	}
 
@@ -44,10 +52,16 @@ func (h *PaymentOptionsHandler) GetPaymentOptions(c *fiber.Ctx) error {
 // UpdatePaymentOptions updates payment options for a merchant
 // PUT /merchants/:id/payment-options
 func (h *PaymentOptionsHandler) UpdatePaymentOptions(c *fiber.Ctx) error {
-	merchantID := c.Params("id")
-	if merchantID == "" {
+	merchantIDStr := c.Params("id")
+	if merchantIDStr == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "merchant_id is required",
+		})
+	}
+	merchantID, err := strconv.Atoi(merchantIDStr)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "merchant_id must be a number",
 		})
 	}
 
@@ -74,10 +88,16 @@ func (h *PaymentOptionsHandler) UpdatePaymentOptions(c *fiber.Ctx) error {
 // GetSettlementConfig retrieves settlement config for a merchant
 // GET /merchants/:id/settlement-config
 func (h *PaymentOptionsHandler) GetSettlementConfig(c *fiber.Ctx) error {
-	merchantID := c.Params("id")
-	if merchantID == "" {
+	merchantIDStr := c.Params("id")
+	if merchantIDStr == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "merchant_id is required",
+		})
+	}
+	merchantID, err := strconv.Atoi(merchantIDStr)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "merchant_id must be a number",
 		})
 	}
 
@@ -94,10 +114,16 @@ func (h *PaymentOptionsHandler) GetSettlementConfig(c *fiber.Ctx) error {
 // UpdateSettlementConfig updates settlement config for a merchant
 // PUT /merchants/:id/settlement-config
 func (h *PaymentOptionsHandler) UpdateSettlementConfig(c *fiber.Ctx) error {
-	merchantID := c.Params("id")
-	if merchantID == "" {
+	merchantIDStr := c.Params("id")
+	if merchantIDStr == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "merchant_id is required",
+		})
+	}
+	merchantID, err := strconv.Atoi(merchantIDStr)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "merchant_id must be a number",
 		})
 	}
 

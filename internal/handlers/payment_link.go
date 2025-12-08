@@ -31,7 +31,7 @@ func (h *PaymentLinkHandler) CreatePaymentLink(c *fiber.Ctx) error {
 	}
 
 	// Validate required fields
-	if req.MerchantID == "" {
+	if req.MerchantID <= 0 {
 		return fiber.NewError(fiber.StatusBadRequest, "merchant_id is required")
 	}
 	if req.Currency == "" {
@@ -56,9 +56,13 @@ func (h *PaymentLinkHandler) CreatePaymentLink(c *fiber.Ctx) error {
 }
 
 func (h *PaymentLinkHandler) GetPaymentLink(c *fiber.Ctx) error {
-	id := c.Params("id")
-	if id == "" {
+	idStr := c.Params("id")
+	if idStr == "" {
 		return fiber.NewError(fiber.StatusBadRequest, "payment link id is required")
+	}
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "payment link id must be a number")
 	}
 
 	link, err := h.svc.GetPaymentLink(c.Context(), id)
@@ -73,9 +77,13 @@ func (h *PaymentLinkHandler) GetPaymentLink(c *fiber.Ctx) error {
 }
 
 func (h *PaymentLinkHandler) ListPaymentLinks(c *fiber.Ctx) error {
-	merchantID := c.Params("merchant_id")
-	if merchantID == "" {
+	merchantIDStr := c.Params("merchant_id")
+	if merchantIDStr == "" {
 		return fiber.NewError(fiber.StatusBadRequest, "merchant_id is required")
+	}
+	merchantID, err := strconv.Atoi(merchantIDStr)
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "merchant_id must be a number")
 	}
 
 	limit := 50
@@ -97,11 +105,22 @@ func (h *PaymentLinkHandler) ListPaymentLinks(c *fiber.Ctx) error {
 }
 
 func (h *PaymentLinkHandler) DeletePaymentLink(c *fiber.Ctx) error {
-	id := c.Params("id")
-	if id == "" {
+	idStr := c.Params("id")
+	if idStr == "" {
 		return fiber.NewError(fiber.StatusBadRequest, "payment link id is required")
 	}
-	merchantID := c.Query("merchant_id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "payment link id must be a number")
+	}
+	merchantIDStr := c.Query("merchant_id")
+	merchantID := 0
+	if merchantIDStr != "" {
+		merchantID, err = strconv.Atoi(merchantIDStr)
+		if err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, "merchant_id must be a number")
+		}
+	}
 
 	if err := h.svc.DeletePaymentLink(c.Context(), id, merchantID); err != nil {
 		if err == repositories.ErrPaymentLinkNotFound {

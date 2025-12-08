@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log" // Added
 	"time"
 
 	_ "github.com/lib/pq"
@@ -44,27 +45,30 @@ func (r *MerchantRepository) GetDB() *sql.DB {
 // Create inserts a new merchant
 func (r *MerchantRepository) Create(ctx context.Context, merchant *models.Merchant) error {
 	query := `
-		INSERT INTO merchants (id, name, email, business_name, country, status, kyc_status, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		INSERT INTO merchants (name, email, business_name, country, status, kyc_status, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		RETURNING id
 	`
-
-	_, err := r.db.ExecContext(ctx, query,
-		merchant.ID,
+	var id int
+	err := r.db.QueryRowContext(ctx, query,
 		merchant.Name,
 		merchant.Email,
 		merchant.BusinessName,
 		merchant.Country,
-		merchant.Status,       // Use status from merchant object
-		merchant.KYCStatus,    // Use KYC status from merchant object
+		merchant.Status,
+		merchant.KYCStatus,
 		merchant.CreatedAt,
 		merchant.UpdatedAt,
-	)
+	).Scan(&id) // Retrieve the generated ID
 
+	if err == nil {
+		merchant.ID = id // Update the merchant object with the ID from DB
+	}
 	return err
 }
 
 // GetByID retrieves a merchant by ID
-func (r *MerchantRepository) GetByID(ctx context.Context, id string) (*models.Merchant, error) {
+func (r *MerchantRepository) GetByID(ctx context.Context, id int) (*models.Merchant, error) {
 	query := `
 		SELECT id, name, email, business_name, country, status, kyc_status, created_at, updated_at
 		FROM merchants
@@ -188,7 +192,7 @@ func (r *MerchantRepository) Update(ctx context.Context, merchant *models.Mercha
 	merchant.UpdatedAt = time.Now()
 
 	result, err := r.db.ExecContext(ctx, query,
-		merchant.ID,
+		merchant.ID, // now int
 		merchant.Name,
 		merchant.BusinessName,
 		merchant.Status,
@@ -213,7 +217,7 @@ func (r *MerchantRepository) Update(ctx context.Context, merchant *models.Mercha
 }
 
 // UpdateStatus updates a merchant's status
-func (r *MerchantRepository) UpdateStatus(ctx context.Context, id string, status models.MerchantStatus) error {
+func (r *MerchantRepository) UpdateStatus(ctx context.Context, id int, status models.MerchantStatus) error { // id changed to int
 	query := `
 		UPDATE merchants
 		SET status = $2, updated_at = $3
@@ -238,7 +242,7 @@ func (r *MerchantRepository) UpdateStatus(ctx context.Context, id string, status
 }
 
 // UpdateKYCStatus updates a merchant's KYC status
-func (r *MerchantRepository) UpdateKYCStatus(ctx context.Context, id string, kycStatus models.KYCStatus) error {
+func (r *MerchantRepository) UpdateKYCStatus(ctx context.Context, id int, kycStatus models.KYCStatus) error { // id changed to int
 	query := `
 		UPDATE merchants
 		SET kyc_status = $2, updated_at = $3
@@ -263,7 +267,7 @@ func (r *MerchantRepository) UpdateKYCStatus(ctx context.Context, id string, kyc
 }
 
 // Delete deletes a merchant
-func (r *MerchantRepository) Delete(ctx context.Context, id string) error {
+func (r *MerchantRepository) Delete(ctx context.Context, id int) error { // id changed to int
 	query := `DELETE FROM merchants WHERE id = $1`
 
 	result, err := r.db.ExecContext(ctx, query, id)
@@ -332,7 +336,7 @@ func (r *MerchantRepository) ListByKYCStatus(ctx context.Context, kycStatus mode
 	for rows.Next() {
 		merchant := &models.Merchant{}
 		err := rows.Scan(
-			&merchant.ID,
+			&merchant.ID, // now int
 			&merchant.Name,
 			&merchant.Email,
 			&merchant.BusinessName,
@@ -387,6 +391,8 @@ func (r *MerchantRepository) ListByKYCStatuses(ctx context.Context, kycStatuses 
 		args = append(args, offset)
 	}
 
+	log.Printf("DEBUG: ListByKYCStatuses query: %s, args: %v", query, args) // Added debug log
+
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
@@ -397,7 +403,7 @@ func (r *MerchantRepository) ListByKYCStatuses(ctx context.Context, kycStatuses 
 	for rows.Next() {
 		merchant := &models.Merchant{}
 		err := rows.Scan(
-			&merchant.ID,
+			&merchant.ID, // now int
 			&merchant.Name,
 			&merchant.Email,
 			&merchant.BusinessName,

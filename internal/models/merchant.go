@@ -23,7 +23,7 @@ const (
 
 // Merchant represents a merchant entity in the system
 type Merchant struct {
-	ID           string         `json:"id"`
+	ID           int            `json:"id"`
 	Name         string         `json:"name"`
 	Email        string         `json:"email"`
 	BusinessName string         `json:"business_name"`

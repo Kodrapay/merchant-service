@@ -18,7 +18,7 @@ func NewPaymentOptionsRepository(db *sql.DB) *PaymentOptionsRepository {
 }
 
 // GetByMerchantID retrieves payment options for a merchant
-func (r *PaymentOptionsRepository) GetByMerchantID(ctx context.Context, merchantID string) (*models.PaymentOptions, error) {
+func (r *PaymentOptionsRepository) GetByMerchantID(ctx context.Context, merchantID int) (*models.PaymentOptions, error) {
 	query := `
 		SELECT id, merchant_id, card_enabled, bank_transfer_enabled, ussd_enabled,
 		       qr_enabled, mobile_money_enabled, card_fee_type, card_fee_value, card_cap,
@@ -51,7 +51,7 @@ func (r *PaymentOptionsRepository) GetByMerchantID(ctx context.Context, merchant
 }
 
 // CreateDefault creates default payment options for a merchant
-func (r *PaymentOptionsRepository) CreateDefault(ctx context.Context, merchantID string) (*models.PaymentOptions, error) {
+func (r *PaymentOptionsRepository) CreateDefault(ctx context.Context, merchantID int) (*models.PaymentOptions, error) {
 	query := `
 		INSERT INTO payment_options (
 			merchant_id, card_enabled, bank_transfer_enabled, ussd_enabled,
@@ -123,7 +123,7 @@ func (r *PaymentOptionsRepository) Update(ctx context.Context, po *models.Paymen
 	}
 
 	if rows == 0 {
-		return fmt.Errorf("payment options not found for merchant: %s", po.MerchantID)
+		return fmt.Errorf("payment options not found for merchant: %d", po.MerchantID)
 	}
 
 	return nil
@@ -139,7 +139,7 @@ func NewSettlementConfigRepository(db *sql.DB) *SettlementConfigRepository {
 }
 
 // GetByMerchantID retrieves settlement config for a merchant
-func (r *SettlementConfigRepository) GetByMerchantID(ctx context.Context, merchantID string) (*models.SettlementConfig, error) {
+func (r *SettlementConfigRepository) GetByMerchantID(ctx context.Context, merchantID int) (*models.SettlementConfig, error) {
 	query := `
 		SELECT id, merchant_id, schedule_type, settlement_time, settlement_days,
 		       minimum_amount, auto_settle, settlement_delay_days, currency,
@@ -176,7 +176,7 @@ func (r *SettlementConfigRepository) GetByMerchantID(ctx context.Context, mercha
 }
 
 // CreateDefault creates default settlement config for a merchant
-func (r *SettlementConfigRepository) CreateDefault(ctx context.Context, merchantID string) (*models.SettlementConfig, error) {
+func (r *SettlementConfigRepository) CreateDefault(ctx context.Context, merchantID int) (*models.SettlementConfig, error) {
 	query := `
 		INSERT INTO settlement_configs (
 			merchant_id, schedule_type, settlement_time, settlement_days,
@@ -195,7 +195,7 @@ func (r *SettlementConfigRepository) CreateDefault(ctx context.Context, merchant
 	err := r.db.QueryRowContext(
 		ctx, query,
 		merchantID, models.ScheduleTypeDaily, "09:00:00", defaultDays,
-		1000000, true, 2, "NGN",
+		0, true, 2, "NGN",
 	).Scan(
 		&sc.ID, &sc.MerchantID, &sc.ScheduleType, &sc.SettlementTime,
 		&settlementDays, &sc.MinimumAmount, &sc.AutoSettle,
@@ -251,7 +251,7 @@ func (r *SettlementConfigRepository) Update(ctx context.Context, sc *models.Sett
 	}
 
 	if rows == 0 {
-		return fmt.Errorf("settlement config not found for merchant: %s", sc.MerchantID)
+		return fmt.Errorf("settlement config not found for merchant: %d", sc.MerchantID)
 	}
 
 	return nil

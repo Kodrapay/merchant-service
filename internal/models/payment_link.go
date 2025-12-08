@@ -3,8 +3,8 @@ package models
 import "time"
 
 type PaymentLink struct {
-	ID          string     `json:"id"`
-	MerchantID  string     `json:"merchant_id"`
+	ID          int        `json:"id"`
+	MerchantID  int        `json:"merchant_id"`
 	Mode        string     `json:"mode"`
 	Amount      *int64     `json:"amount,omitempty"`
 	Currency    string     `json:"currency"`

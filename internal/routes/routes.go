@@ -51,7 +51,7 @@ func Register(app *fiber.App, serviceName string) {
 	balanceRepo := repositories.NewBalanceRepository(db)
 
 	// Initialize services
-	merchantService := services.NewMerchantService(merchantRepo, apiKeyRepo, walletLedgerClient)
+	merchantService := services.NewMerchantService(merchantRepo, apiKeyRepo, settlementConfigRepo, walletLedgerClient)
 	kycService := services.NewKYCService(merchantRepo, kycSubmissionRepo)
 	paymentOptionsService := services.NewPaymentOptionsService(paymentOptionsRepo)
 	settlementConfigService := services.NewSettlementConfigService(settlementConfigRepo)

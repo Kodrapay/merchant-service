@@ -15,8 +15,8 @@ func NewBalanceService(repo *repositories.BalanceRepository) *BalanceService {
 	return &BalanceService{repo: repo}
 }
 
-// GetBalance returns the merchant's balance for a specific currency
-func (s *BalanceService) GetBalance(ctx context.Context, merchantID, currency string) dto.MerchantBalanceResponse {
+// GetBalance returns the merchant's balance for a specific currency in currency units (e.g., NGN)
+func (s *BalanceService) GetBalance(ctx context.Context, merchantID int, currency string) dto.MerchantBalanceResponse {
 	balance, err := s.repo.GetOrCreate(ctx, merchantID, currency)
 	if err != nil {
 		return dto.MerchantBalanceResponse{
@@ -31,23 +31,28 @@ func (s *BalanceService) GetBalance(ctx context.Context, merchantID, currency st
 	return dto.MerchantBalanceResponse{
 		MerchantID:       balance.MerchantID,
 		Currency:         balance.Currency,
-		PendingBalance:   balance.PendingBalance,
-		AvailableBalance: balance.AvailableBalance,
-		TotalVolume:      balance.TotalVolume,
+		PendingBalance:   float64(balance.PendingBalance) / 100,
+		AvailableBalance: float64(balance.AvailableBalance) / 100,
+		TotalVolume:      float64(balance.TotalVolume) / 100,
 	}
 }
 
 // RecordTransaction adds transaction amount to pending balance
-func (s *BalanceService) RecordTransaction(ctx context.Context, merchantID, currency string, amount int64) error {
+func (s *BalanceService) RecordTransaction(ctx context.Context, merchantID int, currency string, amount int64) error {
 	return s.repo.AddToPending(ctx, merchantID, currency, amount)
 }
 
 // SettleFunds moves funds from pending to available
-func (s *BalanceService) SettleFunds(ctx context.Context, merchantID, currency string, amount int64) error {
+func (s *BalanceService) SettleFunds(ctx context.Context, merchantID int, currency string, amount int64) error {
 	return s.repo.SettlePending(ctx, merchantID, currency, amount)
 }
 
 // ProcessPayout deducts amount from available balance
-func (s *BalanceService) ProcessPayout(ctx context.Context, merchantID, currency string, amount int64) error {
+func (s *BalanceService) ProcessPayout(ctx context.Context, merchantID int, currency string, amount int64) error {
 	return s.repo.DeductFromAvailable(ctx, merchantID, currency, amount)
+}
+
+// Settle moves pending funds into available (used by settlement/payout flows)
+func (s *BalanceService) Settle(ctx context.Context, merchantID int, currency string, amount int64) error {
+	return s.repo.SettlePending(ctx, merchantID, currency, amount)
 }

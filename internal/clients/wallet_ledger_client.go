@@ -18,7 +18,7 @@ var ErrWalletNotFound = errors.New("wallet not found")
 
 // WalletLedgerClient defines the interaction surface we need for wallets.
 type WalletLedgerClient interface {
-	GetWalletByUserIDAndCurrency(ctx context.Context, userID, currency string) (*dto.WalletResponse, error)
+	GetWalletByUserIDAndCurrency(ctx context.Context, userID int, currency string) (*dto.WalletResponse, error)
 	CreateWallet(ctx context.Context, req dto.WalletCreateRequest) (*dto.WalletResponse, error)
 }
 
@@ -37,8 +37,13 @@ func NewHTTPWalletLedgerClient(baseURL string) WalletLedgerClient {
 	}
 }
 
-func (c *httpWalletLedgerClient) GetWalletByUserIDAndCurrency(ctx context.Context, userID, currency string) (*dto.WalletResponse, error) {
-	query := fmt.Sprintf("%s/wallets?user_id=%s&currency=%s", c.baseURL, url.QueryEscape(userID), url.QueryEscape(currency))
+func (c *httpWalletLedgerClient) GetWalletByUserIDAndCurrency(ctx context.Context, userID int, currency string) (*dto.WalletResponse, error) {
+	query := fmt.Sprintf(
+		"%s/wallets?user_id=%s&currency=%s",
+		c.baseURL,
+		url.QueryEscape(fmt.Sprintf("%d", userID)),
+		url.QueryEscape(currency),
+	)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, query, nil)
 	if err != nil {
 		return nil, fmt.Errorf("create wallet lookup request: %w", err)

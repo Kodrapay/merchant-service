@@ -12,8 +12,8 @@ const (
 )
 
 type PaymentOptions struct {
-	ID                      string    `json:"id" db:"id"`
-	MerchantID              string    `json:"merchant_id" db:"merchant_id"`
+	ID                      int       `json:"id" db:"id"`
+	MerchantID              int       `json:"merchant_id" db:"merchant_id"`
 	CardEnabled             bool      `json:"card_enabled" db:"card_enabled"`
 	BankTransferEnabled     bool      `json:"bank_transfer_enabled" db:"bank_transfer_enabled"`
 	USSDEnabled             bool      `json:"ussd_enabled" db:"ussd_enabled"`

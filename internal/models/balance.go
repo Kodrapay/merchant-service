@@ -3,8 +3,8 @@ package models
 import "time"
 
 type MerchantBalance struct {
-	ID               string    `json:"id" db:"id"`
-	MerchantID       string    `json:"merchant_id" db:"merchant_id"`
+	ID               int       `json:"id" db:"id"`
+	MerchantID       int       `json:"merchant_id" db:"merchant_id"`
 	Currency         string    `json:"currency" db:"currency"`
 	PendingBalance   int64     `json:"pending_balance" db:"pending_balance"`     // Unsettled funds (kobo)
 	AvailableBalance int64     `json:"available_balance" db:"available_balance"` // Settled funds (kobo)
