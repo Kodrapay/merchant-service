@@ -15,7 +15,7 @@ func NewBalanceService(repo *repositories.BalanceRepository) *BalanceService {
 	return &BalanceService{repo: repo}
 }
 
-// GetBalance returns the merchant's balance for a specific currency
+// GetBalance returns the merchant's balance for a specific currency in currency units (e.g., NGN)
 func (s *BalanceService) GetBalance(ctx context.Context, merchantID int, currency string) dto.MerchantBalanceResponse {
 	balance, err := s.repo.GetOrCreate(ctx, merchantID, currency)
 	if err != nil {
@@ -31,9 +31,9 @@ func (s *BalanceService) GetBalance(ctx context.Context, merchantID int, currenc
 	return dto.MerchantBalanceResponse{
 		MerchantID:       balance.MerchantID,
 		Currency:         balance.Currency,
-		PendingBalance:   balance.PendingBalance,
-		AvailableBalance: balance.AvailableBalance,
-		TotalVolume:      balance.TotalVolume,
+		PendingBalance:   float64(balance.PendingBalance) / 100,
+		AvailableBalance: float64(balance.AvailableBalance) / 100,
+		TotalVolume:      float64(balance.TotalVolume) / 100,
 	}
 }
 

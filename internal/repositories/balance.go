@@ -101,11 +101,19 @@ func (r *BalanceRepository) SettlePending(ctx context.Context, merchantID int, c
 
 // DeductFromAvailable deducts amount from available balance (when payout is made)
 func (r *BalanceRepository) DeductFromAvailable(ctx context.Context, merchantID int, currency string, amount int64) error {
-	_, err := r.db.ExecContext(ctx, `
+	res, err := r.db.ExecContext(ctx, `
 		UPDATE merchant_balances
 		SET available_balance = available_balance - $3,
 			updated_at = NOW()
 		WHERE merchant_id = $1 AND currency = $2 AND available_balance >= $3
 	`, merchantID, currency, amount)
-	return err
+	if err != nil {
+		return err
+	}
+
+	rows, _ := res.RowsAffected()
+	if rows == 0 {
+		return fmt.Errorf("insufficient available balance")
+	}
+	return nil
 }

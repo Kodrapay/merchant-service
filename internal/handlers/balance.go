@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"math"
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
@@ -36,14 +37,15 @@ func (h *BalanceHandler) Register(app *fiber.App) {
 	app.Get("/merchants/:id/balance", h.GetBalance)
 	app.Post("/internal/balance/settle", h.SettleBalance)
 	app.Post("/internal/balance/record", h.RecordBalance)
+	app.Post("/internal/balance/payout", h.ProcessPayout)
 }
 
 // SettleBalance moves pending into available for a merchant (internal use)
 func (h *BalanceHandler) SettleBalance(c *fiber.Ctx) error {
 	var payload struct {
-		MerchantID int    `json:"merchant_id"`
-		Currency   string `json:"currency"`
-		Amount     int64  `json:"amount"`
+		MerchantID int     `json:"merchant_id"`
+		Currency   string  `json:"currency"`
+		Amount     float64 `json:"amount"` // currency units
 	}
 	if err := c.BodyParser(&payload); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid request body")
@@ -55,7 +57,9 @@ func (h *BalanceHandler) SettleBalance(c *fiber.Ctx) error {
 		payload.Currency = "NGN"
 	}
 
-	if err := h.svc.Settle(c.Context(), payload.MerchantID, payload.Currency, payload.Amount); err != nil {
+	amountKobo := int64(math.Round(payload.Amount * 100))
+
+	if err := h.svc.Settle(c.Context(), payload.MerchantID, payload.Currency, amountKobo); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 	return c.SendStatus(fiber.StatusNoContent)
@@ -64,9 +68,9 @@ func (h *BalanceHandler) SettleBalance(c *fiber.Ctx) error {
 // RecordBalance adds a successful transaction amount into pending balance
 func (h *BalanceHandler) RecordBalance(c *fiber.Ctx) error {
 	var payload struct {
-		MerchantID int    `json:"merchant_id"`
-		Currency   string `json:"currency"`
-		Amount     int64  `json:"amount"`
+		MerchantID int     `json:"merchant_id"`
+		Currency   string  `json:"currency"`
+		Amount     float64 `json:"amount"` // currency units
 	}
 	if err := c.BodyParser(&payload); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid request body")
@@ -78,7 +82,34 @@ func (h *BalanceHandler) RecordBalance(c *fiber.Ctx) error {
 		payload.Currency = "NGN"
 	}
 
-	if err := h.svc.RecordTransaction(c.Context(), payload.MerchantID, payload.Currency, payload.Amount); err != nil {
+	amountKobo := int64(math.Round(payload.Amount * 100))
+
+	if err := h.svc.RecordTransaction(c.Context(), payload.MerchantID, payload.Currency, amountKobo); err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	}
+	return c.SendStatus(fiber.StatusNoContent)
+}
+
+// ProcessPayout deducts from a merchant's available balance (internal use)
+func (h *BalanceHandler) ProcessPayout(c *fiber.Ctx) error {
+	var payload struct {
+		MerchantID int     `json:"merchant_id"`
+		Currency   string  `json:"currency"`
+		Amount     float64 `json:"amount"` // currency units
+	}
+	if err := c.BodyParser(&payload); err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "invalid request body")
+	}
+	if payload.MerchantID <= 0 || payload.Amount <= 0 {
+		return fiber.NewError(fiber.StatusBadRequest, "merchant_id and positive amount are required")
+	}
+	if payload.Currency == "" {
+		payload.Currency = "NGN"
+	}
+
+	amountKobo := int64(math.Round(payload.Amount * 100))
+
+	if err := h.svc.ProcessPayout(c.Context(), payload.MerchantID, payload.Currency, amountKobo); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 	return c.SendStatus(fiber.StatusNoContent)
