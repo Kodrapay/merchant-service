@@ -2,10 +2,15 @@ package services
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"math"
+	"os"
+	"strconv"
 	"time"
 
 	"github.com/kodra-pay/merchant-service/internal/dto"
@@ -49,6 +54,9 @@ func (s *PaymentLinkService) CreatePaymentLink(ctx context.Context, req dto.Crea
 		Description: req.Description,
 		Status:      "active",
 	}
+
+	// Generate signature for tampering detection
+	link.Signature = generatePaymentLinkSignature(link)
 
 	if err := s.repo.Create(ctx, link); err != nil {
 		return nil, err
@@ -153,4 +161,43 @@ func toCurrencyAmount(amountKobo *int64) *float64 {
 // Helper function to get current timestamp in milliseconds
 func getCurrentTimestampMillis() int64 {
 	return time.Now().UnixMilli()
+}
+
+// generatePaymentLinkSignature creates an HMAC-SHA256 signature of the payment link parameters
+func generatePaymentLinkSignature(link *models.PaymentLink) string {
+	secret := os.Getenv("PAYMENT_LINK_SECRET")
+	if secret == "" {
+		secret = "kodrapay-default-secret-change-in-production"
+	}
+
+	// Create canonical string from link parameters
+	amountStr := "null"
+	if link.Amount != nil {
+		amountStr = strconv.FormatInt(*link.Amount, 10)
+	}
+
+	data := fmt.Sprintf("%d|%s|%s|%s|%s",
+		link.MerchantID,
+		link.Mode,
+		amountStr,
+		link.Currency,
+		link.Description,
+	)
+
+	// Generate HMAC-SHA256 signature
+	h := hmac.New(sha256.New, []byte(secret))
+	h.Write([]byte(data))
+	return hex.EncodeToString(h.Sum(nil))
+}
+
+// VerifyPaymentLinkSignature verifies that a payment link's parameters haven't been tampered with
+func VerifyPaymentLinkSignature(link *models.PaymentLink) bool {
+	if link.Signature == "" {
+		// Old links without signature - allow them but log warning
+		fmt.Printf("Warning: Payment link %d has no signature\n", link.ID)
+		return true
+	}
+
+	expectedSignature := generatePaymentLinkSignature(link)
+	return hmac.Equal([]byte(link.Signature), []byte(expectedSignature))
 }

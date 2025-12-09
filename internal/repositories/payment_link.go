@@ -20,9 +20,9 @@ func NewPaymentLinkRepository(db *sql.DB) *PaymentLinkRepository {
 
 func (r *PaymentLinkRepository) Create(ctx context.Context, link *models.PaymentLink) error {
 	query := `
-		INSERT INTO payment_links (merchant_id, mode, amount, currency, description, status)
-		VALUES ($1, $2, $3, $4, $5, $6)
-		RETURNING id, created_at, updated_at
+		INSERT INTO payment_links (merchant_id, mode, amount, currency, description, status, signature)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		RETURNING id, reference, created_at, updated_at
 	`
 	return r.db.QueryRowContext(ctx, query,
 		link.MerchantID,
@@ -31,25 +31,32 @@ func (r *PaymentLinkRepository) Create(ctx context.Context, link *models.Payment
 		link.Currency,
 		link.Description,
 		link.Status,
-	).Scan(&link.ID, &link.CreatedAt, &link.UpdatedAt)
+		link.Signature,
+	).Scan(&link.ID, &link.Reference, &link.CreatedAt, &link.UpdatedAt)
 }
 
 func (r *PaymentLinkRepository) GetByID(ctx context.Context, id int) (*models.PaymentLink, error) {
 	query := `
-		SELECT id, merchant_id, mode, amount, currency, description, status, expires_at, created_at, updated_at
+		SELECT id, merchant_id, mode, amount, currency, description, reference, status, signature, expires_at, created_at, updated_at
 		FROM payment_links
 		WHERE id = $1
 	`
-	var link models.PaymentLink
+	var (
+		link    models.PaymentLink
+		amount  sql.NullInt64
+		expires sql.NullTime
+	)
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
 		&link.ID,
 		&link.MerchantID,
 		&link.Mode,
-		&link.Amount,
+		&amount,
 		&link.Currency,
 		&link.Description,
+		&link.Reference,
 		&link.Status,
-		&link.ExpiresAt,
+		&link.Signature,
+		&expires,
 		&link.CreatedAt,
 		&link.UpdatedAt,
 	)
@@ -59,12 +66,19 @@ func (r *PaymentLinkRepository) GetByID(ctx context.Context, id int) (*models.Pa
 	if err != nil {
 		return nil, err
 	}
+	if amount.Valid {
+		val := amount.Int64
+		link.Amount = &val
+	}
+	if expires.Valid {
+		link.ExpiresAt = &expires.Time
+	}
 	return &link, nil
 }
 
 func (r *PaymentLinkRepository) GetByMerchantID(ctx context.Context, merchantID int, limit int) ([]models.PaymentLink, error) {
 	query := `
-		SELECT id, merchant_id, mode, amount, currency, description, status, expires_at, created_at, updated_at
+		SELECT id, merchant_id, mode, amount, currency, description, reference, status, signature, expires_at, created_at, updated_at
 		FROM payment_links
 		WHERE merchant_id = $1
 		ORDER BY created_at DESC
@@ -78,20 +92,33 @@ func (r *PaymentLinkRepository) GetByMerchantID(ctx context.Context, merchantID 
 
 	var links []models.PaymentLink
 	for rows.Next() {
-		var link models.PaymentLink
+		var (
+			link    models.PaymentLink
+			amount  sql.NullInt64
+			expires sql.NullTime
+		)
 		if err := rows.Scan(
 			&link.ID,
 			&link.MerchantID,
 			&link.Mode,
-			&link.Amount,
+			&amount,
 			&link.Currency,
 			&link.Description,
+			&link.Reference,
 			&link.Status,
-			&link.ExpiresAt,
+			&link.Signature,
+			&expires,
 			&link.CreatedAt,
 			&link.UpdatedAt,
 		); err != nil {
 			return nil, err
+		}
+		if amount.Valid {
+			val := amount.Int64
+			link.Amount = &val
+		}
+		if expires.Valid {
+			link.ExpiresAt = &expires.Time
 		}
 		links = append(links, link)
 	}

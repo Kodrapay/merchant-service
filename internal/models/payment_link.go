@@ -9,7 +9,9 @@ type PaymentLink struct {
 	Amount      *int64     `json:"amount,omitempty"`
 	Currency    string     `json:"currency"`
 	Description string     `json:"description,omitempty"`
+	Reference   string     `json:"reference"`
 	Status      string     `json:"status"`
+	Signature   string     `json:"signature,omitempty"`
 	ExpiresAt   *time.Time `json:"expires_at,omitempty"`
 	CreatedAt   time.Time  `json:"created_at"`
 	UpdatedAt   time.Time  `json:"updated_at"`
