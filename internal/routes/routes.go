@@ -41,6 +41,13 @@ func Register(app *fiber.App, serviceName string) {
 	}
 	walletLedgerClient := clients.NewHTTPWalletLedgerClient(walletLedgerURL)
 
+	// Subscription service base URL
+	subscriptionServiceURL := os.Getenv("SUBSCRIPTION_SERVICE_URL")
+	if subscriptionServiceURL == "" {
+		subscriptionServiceURL = "http://subscription-service:7019"
+	}
+	subscriptionClient := clients.NewSubscriptionClient(subscriptionServiceURL)
+
 	// Get database connection from merchant repository for other repos
 	db := merchantRepo.GetDB()
 	paymentOptionsRepo := repositories.NewPaymentOptionsRepository(db)
@@ -51,7 +58,7 @@ func Register(app *fiber.App, serviceName string) {
 	balanceRepo := repositories.NewBalanceRepository(db)
 
 	// Initialize services
-	merchantService := services.NewMerchantService(merchantRepo, apiKeyRepo, settlementConfigRepo, walletLedgerClient)
+	merchantService := services.NewMerchantService(merchantRepo, apiKeyRepo, settlementConfigRepo, walletLedgerClient, subscriptionClient)
 	kycService := services.NewKYCService(merchantRepo, kycSubmissionRepo)
 	paymentOptionsService := services.NewPaymentOptionsService(paymentOptionsRepo)
 	settlementConfigService := services.NewSettlementConfigService(settlementConfigRepo)

@@ -19,10 +19,17 @@ type MerchantService struct {
 	apiKeyRepo         *repositories.APIKeyRepository
 	settlementRepo     *repositories.SettlementConfigRepository
 	walletLedgerClient clients.WalletLedgerClient
+	subscriptionClient clients.SubscriptionClient
 }
 
-func NewMerchantService(repo *repositories.MerchantRepository, apiKeyRepo *repositories.APIKeyRepository, settlementRepo *repositories.SettlementConfigRepository, walletLedgerClient clients.WalletLedgerClient) *MerchantService {
-	return &MerchantService{repo: repo, apiKeyRepo: apiKeyRepo, settlementRepo: settlementRepo, walletLedgerClient: walletLedgerClient}
+func NewMerchantService(repo *repositories.MerchantRepository, apiKeyRepo *repositories.APIKeyRepository, settlementRepo *repositories.SettlementConfigRepository, walletLedgerClient clients.WalletLedgerClient, subscriptionClient clients.SubscriptionClient) *MerchantService {
+	return &MerchantService{
+		repo:               repo,
+		apiKeyRepo:         apiKeyRepo,
+		settlementRepo:     settlementRepo,
+		walletLedgerClient: walletLedgerClient,
+		subscriptionClient: subscriptionClient,
+	}
 }
 
 func (s *MerchantService) List(ctx context.Context) []dto.MerchantResponse {
@@ -79,6 +86,16 @@ func (s *MerchantService) Create(ctx context.Context, req dto.MerchantCreateRequ
 	// Provision default settlement config (idempotent)
 	if err := s.ensureSettlementConfig(ctx, merchant.ID); err != nil {
 		log.Printf("Failed to provision default settlement config for merchant %d: %v", merchant.ID, err)
+	}
+
+	// Create subscription with Starter tier (tier_id = 1)
+	if s.subscriptionClient != nil {
+		if err := s.subscriptionClient.CreateMerchantSubscription(ctx, int64(merchant.ID), 1); err != nil {
+			log.Printf("Failed to create subscription for merchant %d: %v", merchant.ID, err)
+			// Don't fail merchant creation if subscription fails
+		} else {
+			log.Printf("Successfully created subscription for merchant %d", merchant.ID)
+		}
 	}
 
 	return dto.MerchantCreateResponse{ID: merchant.ID}
